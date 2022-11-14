@@ -11,6 +11,13 @@ type Max22190 struct {
 	cs  *gpiod.Line
 }
 
+func NewMax22190(spi *spidev.Device, cs *gpiod.Line) *Max22190 {
+	dev := new(Max22190)
+	dev.spi = spi
+	dev.cs = cs
+	return dev
+}
+
 // Public
 type Line byte
 
@@ -102,18 +109,28 @@ const (
 	FaultStickyPin = GPO(0x80)
 )
 
-func (m *Max22190) WriteFault1(reg registerAddress, rw commandType, data byte) ([]byte, error) {
-	m.cs.SetValue(0)
-	cmd, err := m.command(reg, rw, false, data)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]byte, 3)
-	if err := m.spi.Tx(cmd, resp); err != nil {
-		return nil, err
-	}
-	m.cs.SetValue(1)
-	return resp, nil
+func (m *Max22190) ReadInputs() ([]byte, error) {
+	return m.read(inputRegister)
+}
+
+func (m *Max22190) ReadWireBreak() ([]byte, error) {
+	return m.read(wireBreakRegister)
+}
+
+func (m *Max22190) ReadFault1() ([]byte, error) {
+	return m.read(fault1Register)
+}
+
+func (m *Max22190) WriteFault1(data Fault1) ([]byte, error) {
+	return m.write(fault1Register, byte(data))
+}
+
+func (m *Max22190) ReadFault2() ([]byte, error) {
+	return m.read(fault2Register)
+}
+
+func (m *Max22190) WriteFault2(data Fault1) ([]byte, error) {
+	return m.write(fault2Register, byte(data))
 }
 
 // Private
@@ -121,7 +138,7 @@ type registerAddress byte
 
 const (
 	wireBreakRegister     = registerAddress(0x00)
-	digitalInputRegister  = registerAddress(0x02)
+	inputRegister         = registerAddress(0x02)
 	fault1Register        = registerAddress(0x04)
 	filterIn1Register     = registerAddress(0x06)
 	filterIn2Register     = registerAddress(0x08)
@@ -147,11 +164,11 @@ const (
 	writeCommand = commandType(1)
 )
 
-func (m *Max22190) read(reg registerAddress, rw commandType) ([]byte, error) {
-	return m.transfer(reg, writeCommand, 0x00)
+func (m *Max22190) read(reg registerAddress) ([]byte, error) {
+	return m.transfer(reg, readCommand, 0x00)
 }
 
-func (m *Max22190) write(reg registerAddress, rw commandType, data byte) ([]byte, error) {
+func (m *Max22190) write(reg registerAddress, data byte) ([]byte, error) {
 	return m.transfer(reg, writeCommand, data)
 }
 

@@ -1,11 +1,71 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/siyka-au/gomaxim/pkg/max14915"
+	"github.com/siyka-au/gomaxim/pkg/max22190"
+	"github.com/warthog618/gpiod"
 	spidev "golang.org/x/exp/io/spi"
 )
 
 func main() {
 	// GPIO setup
+	fault, err := gpiod.RequestLine("gpiochip1", 10, gpiod.AsInput)
+	if err != nil {
+		panic(err)
+	}
+
+	latch, err := gpiod.RequestLine("gpiochip2", 10, gpiod.AsOutput(1))
+	if err != nil {
+		panic(err)
+	}
+
+	sync, err := gpiod.RequestLine("gpiochip2", 9, gpiod.AsOutput(1))
+	if err != nil {
+		panic(err)
+	}
+
+	cs1, err := gpiod.RequestLine("gpiochip8", 3, gpiod.AsOutput(1))
+	if err != nil {
+		panic(err)
+	}
+
+	cs2, err := gpiod.RequestLine("gpiochip2", 12, gpiod.AsOutput(1))
+	if err != nil {
+		panic(err)
+	}
+
+	cs3, err := gpiod.RequestLine("gpiochip1", 12, gpiod.AsOutput(1))
+	if err != nil {
+		panic(err)
+	}
+
+	cs4, err := gpiod.RequestLine("gpiochip2", 11, gpiod.AsOutput(1))
+	if err != nil {
+		panic(err)
+	}
+
+	// revert line to input on the way out.
+	defer func() {
+		fault.Close()
+		latch.Reconfigure(gpiod.AsInput)
+		latch.Close()
+		sync.Reconfigure(gpiod.AsInput)
+		sync.Close()
+		cs1.Reconfigure(gpiod.AsInput)
+		cs1.Close()
+		cs2.Reconfigure(gpiod.AsInput)
+		cs2.Close()
+		cs3.Reconfigure(gpiod.AsInput)
+		cs3.Close()
+		cs4.Reconfigure(gpiod.AsInput)
+		cs4.Close()
+	}()
 
 	// SPI setup
 	spi, err := spidev.Open(&spidev.Devfs{
@@ -18,5 +78,50 @@ func main() {
 	}
 	defer spi.Close()
 
-	// Rah
+	// Device initialisation
+	in1 := max22190.NewMax22190(spi, cs1)
+	in2 := max22190.NewMax22190(spi, cs2)
+	in3 := max22190.NewMax22190(spi, cs3)
+	out1 := max14915.NewMax14915(spi, cs4, 0b00)
+	out2 := max14915.NewMax14915(spi, cs4, 0b01)
+
+	// Capture exit signals to ensure pin is reverted to input on exit.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(quit)
+
+	faults, _ := in1.ReadFault1()
+	fmt.Printf("IN1 Faults: %b", faults[1])
+
+	faults, _ = in2.ReadFault1()
+	fmt.Printf("IN2 Faults: %b", faults[1])
+
+	faults, _ = in3.ReadFault1()
+	fmt.Printf("IN3 Faults: %b", faults[1])
+
+	faults, _ = out1.ReadGlobalFault()
+	fmt.Printf("OUT1 Global Fault: %b", faults[1])
+	conf, _ := out1.ReadConfig1()
+	fmt.Printf("OUT1 Config1: %b", conf[1])
+	conf, _ = out1.ReadConfig2()
+	fmt.Printf("OUT1 Config2: %b", conf[1])
+
+	faults, _ = out1.ReadGlobalFault()
+	fmt.Printf("OUT2 Global Fault: %b", faults[1])
+	conf, _ = out2.ReadConfig1()
+	fmt.Printf("OUT2 Config1: %b", conf[1])
+	conf, _ = out2.ReadConfig2()
+	fmt.Printf("OUT2 Config2: %b", conf[1])
+
+	for {
+		select {
+		case <-time.After(2 * time.Second):
+			// v ^= 1
+			// l.SetValue(v)
+			// fmt.Printf("Set pin %d %s\n", offset, values[v])
+		case <-quit:
+			return
+		}
+	}
+
 }

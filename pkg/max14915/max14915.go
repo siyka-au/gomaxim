@@ -12,6 +12,14 @@ type Max14915 struct {
 	addr byte
 }
 
+func NewMax14915(spi *spidev.Device, cs *gpiod.Line, addr byte) *Max14915 {
+	dev := new(Max14915)
+	dev.spi = spi
+	dev.cs = cs
+	dev.addr = addr
+	return dev
+}
+
 // Public
 
 type Line byte
@@ -27,12 +35,106 @@ const (
 	Line8 = Line(0x80)
 )
 
-// Private
-func (m *Max14915) read(reg registerAddress, rw commandType) ([]byte, error) {
-	return m.transfer(reg, writeCommand, 0x00)
+type Config1 byte
+
+const (
+	FaultLEDManualControl    = Config1(0x01)
+	StatusLEDManualControl   = Config1(0x02)
+	FaultLEDStretchDisable   = Config1(0x00)
+	FaultLEDStretch1Sec      = Config1(0x04)
+	FaultLEDStretch2Sec      = Config1(0x08)
+	FaultLEDStretch3Sec      = Config1(0x0c)
+	FaultFilterEnable        = Config1(0x10)
+	FilterLongBlankingTime   = Config1(0x20)
+	FaultLatchEnable         = Config1(0x40)
+	FaultLEDShowCurrentLimit = Config1(0x80)
+)
+
+type Config2 byte
+
+const (
+	VDDOnThresholdVDDGood                         = Config2(0x01)
+	ShortToVDDThreshold9V                         = Config2(0x00)
+	ShortToVDDThreshold10V                        = Config2(0x04)
+	ShortToVDDThreshold12V                        = Config2(0x08)
+	ShortToVDDThreshold14V                        = Config2(0x0c)
+	OpenWireCurrentDetectionMagnitude20MicroAmps  = Config2(0x00)
+	OpenWireCurrentDetectionMagnitude100MicroAmps = Config2(0x10)
+	OpenWireCurrentDetectionMagnitude300MicroAmps = Config2(0x20)
+	OpenWireCurrentDetectionMagnitude600MicroAmps = Config2(0x30)
+	WatchDogTimeOutDisable                        = Config2(0x00)
+	WatchDogTimeOut200Millis                      = Config2(0x40)
+	WatchDogTimeOut600Millis                      = Config2(0x80)
+	WatchDogTimeOut1_2Secs                        = Config2(0xc0)
+)
+
+type Mask byte
+
+const (
+	OverloadMask     = Mask(0x01)
+	CurrentLimitMask = Mask(0x02)
+	OpenWireOffMask  = Mask(0x04)
+	OpenWireOnMask   = Mask(0x08)
+	ShortToVDDMask   = Mask(0x10)
+	VDDOKMask        = Mask(0x20)
+	SupplyErrorMask  = Mask(0x40)
+	CommErrorMask    = Mask(0x80)
+)
+
+func (m *Max14915) ReadOutputs() ([]byte, error) {
+	return m.read(outputRegister)
 }
 
-func (m *Max14915) write(reg registerAddress, rw commandType, data byte) ([]byte, error) {
+func (m *Max14915) WriteOutputs(data Line) ([]byte, error) {
+	return m.write(outputRegister, byte(data))
+}
+
+func (m *Max14915) ReadGlobalFault() ([]byte, error) {
+	return m.read(globalFaultRegister)
+}
+
+func (m *Max14915) ReadShortToVDD() ([]byte, error) {
+	return m.read(shortToVDDRegister)
+}
+
+func (m *Max14915) ReadCurrentLimit() ([]byte, error) {
+	return m.read(currentLimitRegister)
+}
+
+func (m *Max14915) ReadOverload() ([]byte, error) {
+	return m.read(overloadRegister)
+}
+
+func (m *Max14915) ReadConfig1() ([]byte, error) {
+	return m.read(config1Register)
+}
+
+func (m *Max14915) WriteConfig1(data Config1) ([]byte, error) {
+	return m.write(config1Register, byte(data))
+}
+
+func (m *Max14915) ReadConfig2() ([]byte, error) {
+	return m.read(config2Register)
+}
+
+func (m *Max14915) WriteConfig2(data Config2) ([]byte, error) {
+	return m.write(config2Register, byte(data))
+}
+
+func (m *Max14915) ReadMask() ([]byte, error) {
+	return m.read(maskRegister)
+}
+
+func (m *Max14915) WriteMask(data Mask) ([]byte, error) {
+	return m.write(maskRegister, byte(data))
+}
+
+// Private
+func (m *Max14915) read(reg registerAddress) ([]byte, error) {
+	return m.transfer(reg, readCommand, 0x00)
+}
+
+func (m *Max14915) write(reg registerAddress, data byte) ([]byte, error) {
 	return m.transfer(reg, writeCommand, data)
 }
 
