@@ -91,34 +91,41 @@ func main() {
 	defer signal.Stop(quit)
 
 	faults, _ := in1.ReadFault1()
-	fmt.Printf("IN1 Faults: %b", faults[1])
+	fmt.Printf("IN1 Faults: %08b\n", faults[1])
 
 	faults, _ = in2.ReadFault1()
-	fmt.Printf("IN2 Faults: %b", faults[1])
+	fmt.Printf("IN2 Faults: %08b\n", faults[1])
 
 	faults, _ = in3.ReadFault1()
-	fmt.Printf("IN3 Faults: %b", faults[1])
+	fmt.Printf("IN3 Faults: %08b\n", faults[1])
 
 	faults, _ = out1.ReadGlobalFault()
-	fmt.Printf("OUT1 Global Fault: %b", faults[1])
+	fmt.Printf("OUT1 Global Fault: %08b\n", faults[1])
 	conf, _ := out1.ReadConfig1()
-	fmt.Printf("OUT1 Config1: %b", conf[1])
+	fmt.Printf("OUT1 Config1: %08b\n", conf[1])
 	conf, _ = out1.ReadConfig2()
-	fmt.Printf("OUT1 Config2: %b", conf[1])
+	fmt.Printf("OUT1 Config2: %08b\n", conf[1])
 
 	faults, _ = out1.ReadGlobalFault()
-	fmt.Printf("OUT2 Global Fault: %b", faults[1])
+	fmt.Printf("OUT2 Global Fault: %b\n", faults[1])
 	conf, _ = out2.ReadConfig1()
-	fmt.Printf("OUT2 Config1: %b", conf[1])
+	fmt.Printf("OUT2 Config1: %08b\n", conf[1])
 	conf, _ = out2.ReadConfig2()
-	fmt.Printf("OUT2 Config2: %b", conf[1])
+	fmt.Printf("OUT2 Config2: %08b\n", conf[1])
 
+	out1.WriteConfig1(max14915.FaultLatchEnable | max14915.FaultFilterEnable)
+	out2.WriteConfig1(max14915.FaultLatchEnable | max14915.FaultFilterEnable)
+
+	v := 0
 	for {
 		select {
-		case <-time.After(2 * time.Second):
-			// v ^= 1
-			// l.SetValue(v)
-			// fmt.Printf("Set pin %d %s\n", offset, values[v])
+		case <-time.After(500 * time.Millisecond):
+			v ^= 1
+			if v == 1 {
+				out1.SetOutputs(max14915.Line1 | max14915.Line4)
+			} else {
+				out1.ResetOutputs(max14915.Line1 | max14915.Line4)
+			}
 		case <-quit:
 			return
 		}

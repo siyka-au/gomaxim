@@ -89,6 +89,14 @@ func (m *Max14915) WriteOutputs(data Line) ([]byte, error) {
 	return m.write(outputRegister, byte(data))
 }
 
+func (m *Max14915) SetOutputs(data Line) ([]byte, error) {
+	return m.set(outputRegister, byte(data))
+}
+
+func (m *Max14915) ResetOutputs(data Line) ([]byte, error) {
+	return m.reset(outputRegister, byte(data))
+}
+
 func (m *Max14915) ReadGlobalFault() ([]byte, error) {
 	return m.read(globalFaultRegister)
 }
@@ -136,6 +144,22 @@ func (m *Max14915) read(reg registerAddress) ([]byte, error) {
 
 func (m *Max14915) write(reg registerAddress, data byte) ([]byte, error) {
 	return m.transfer(reg, writeCommand, data)
+}
+
+func (m *Max14915) set(reg registerAddress, data byte) ([]byte, error) {
+	currVal, err := m.read(reg)
+	if err != nil {
+		return nil, err
+	}
+	return m.write(reg, currVal[1]|data)
+}
+
+func (m *Max14915) reset(reg registerAddress, data byte) ([]byte, error) {
+	currVal, err := m.read(reg)
+	if err != nil {
+		return nil, err
+	}
+	return m.write(reg, currVal[1] & ^data)
 }
 
 func (m *Max14915) transfer(reg registerAddress, rw commandType, data byte) ([]byte, error) {
