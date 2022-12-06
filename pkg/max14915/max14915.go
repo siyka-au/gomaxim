@@ -159,7 +159,7 @@ func (m *Max14915) reset(reg registerAddress, data byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return m.write(reg, currVal[1] & ^data)
+	return m.write(reg, currVal[1]&^data)
 }
 
 func (m *Max14915) transfer(reg registerAddress, rw commandType, data byte) ([]byte, error) {
